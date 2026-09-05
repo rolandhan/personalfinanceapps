@@ -1,7 +1,7 @@
 import React from 'react';
-import { PlusCircle, ArrowRightLeft, Tag, FileText } from 'lucide-react';
+import { PlusCircle, ArrowRightLeft, Tag, Boxes, FileText } from 'lucide-react';
 
-export const QuickActions = ({ onOpenTransaction, onOpenAllocation, onOpenCategory, onViewReports }) => {
+export const QuickActions = ({ onOpenTransaction, onOpenAllocation, onOpenCategory, onOpenSubAccounts, onViewReports }) => {
   return (
     <div className="quick-actions-bar">
       <button className="btn btn-primary" onClick={() => onOpenTransaction('EXPENSE')}>
@@ -22,6 +22,11 @@ export const QuickActions = ({ onOpenTransaction, onOpenAllocation, onOpenCatego
       <button className="btn btn-outline" onClick={onOpenCategory}>
         <Tag size={18} />
         <span>Kelola Kategori</span>
+      </button>
+
+      <button className="btn btn-outline" onClick={onOpenSubAccounts}>
+        <Boxes size={18} color="#3B82F6" />
+        <span>Kelola Sub-Saldo</span>
       </button>
 
       <button className="btn btn-outline" onClick={onViewReports}>

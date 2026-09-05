@@ -1,5 +1,6 @@
 import { isSupabaseConfigured } from './supabaseClient';
 import { supabaseService } from './supabaseService';
+import { slugify } from '../utils/scopeMeta';
 
 // Storage Service with user-scoped LocalStorage & Supabase hybrid persistence
 
@@ -14,21 +15,27 @@ const DEFAULT_ACCOUNTS = [
     type: 'PRIMARY',
     name: 'Saldo Utama (Gaji / Rekening Utama)',
     balance: 15500000,
-    icon: 'Wallet'
+    icon: 'Wallet',
+    color: '#3B82F6',
+    scopeCode: null
   },
   {
     id: 'acc-household',
     type: 'HOUSEHOLD_SUB',
     name: 'Sub-Saldo Rumah Tangga',
     balance: 4800000,
-    icon: 'Home'
+    icon: 'Home',
+    color: '#10B981',
+    scopeCode: 'HOUSEHOLD_EXPENSE'
   },
   {
     id: 'acc-personal',
     type: 'PERSONAL_SUB',
     name: 'Sub-Saldo Personal',
     balance: 2350000,
-    icon: 'User'
+    icon: 'User',
+    color: '#8B5CF6',
+    scopeCode: 'PERSONAL_EXPENSE'
   }
 ];
 
@@ -180,6 +187,68 @@ export const storageService = {
     categories = categories.filter(c => c.id !== id);
     const catKey = getStorageKey('categories', userEmail);
     localStorage.setItem(catKey, JSON.stringify(categories));
+  },
+
+  // Tambah Sub-Saldo / Pos baru. Setiap pos memiliki scopeCode (jenis pengeluaran) sendiri.
+  addSubAccount(subAccountData, userEmail) {
+    const accounts = this.getAccounts(userEmail);
+    const name = String((subAccountData && subAccountData.name) || '').trim();
+    if (!name) {
+      throw new Error('Nama pos / sub-saldo tidak boleh kosong.');
+    }
+
+    const timestamp = Date.now();
+    const base = slugify(name) || 'pos';
+    const newAccount = {
+      id: `acc-${base}-${timestamp}`,
+      type: 'CUSTOM_SUB',
+      name: `Sub-Saldo ${name}`,
+      balance: 0,
+      icon: (subAccountData && subAccountData.icon) || 'Wallet',
+      color: (subAccountData && subAccountData.color) || '#8B5CF6',
+      scopeCode: `SCOPE_${timestamp}`
+    };
+
+    accounts.push(newAccount);
+    const accKey = getStorageKey('accounts', userEmail);
+    localStorage.setItem(accKey, JSON.stringify(accounts));
+    return newAccount;
+  },
+
+  // Hapus Sub-Saldo / Pos dengan syarat aman:
+  // saldo harus Rp 0 dan tidak ada transaksi yang memakainya.
+  // Kategori milik pos (scope) ikut terhapus.
+  deleteSubAccount(accId, userEmail) {
+    let accounts = this.getAccounts(userEmail);
+    const transactions = this.getTransactions(userEmail);
+    const account = accounts.find(a => a.id === accId);
+
+    if (!account) throw new Error('Sub-Saldo tidak ditemukan.');
+    if (account.type === 'PRIMARY') throw new Error('Saldo Utama tidak dapat dihapus.');
+    if (Number(account.balance) !== 0) {
+      throw new Error('Sub-Saldo masih memiliki saldo. Kosongkan dulu sebelum menghapus.');
+    }
+
+    const isUsed = transactions.some(t =>
+      t.accountId === accId || t.fromAccountId === accId || t.toAccountId === accId
+    );
+    if (isUsed) {
+      throw new Error('Sub-Saldo masih dipakai oleh transaksi. Tidak dapat dihapus.');
+    }
+
+    // Cascade hapus kategori yang ber-scope milik pos ini
+    const scope = account.scopeCode;
+    if (scope) {
+      let categories = this.getCategories(userEmail);
+      categories = categories.filter(c => c.scope !== scope);
+      const catKey = getStorageKey('categories', userEmail);
+      localStorage.setItem(catKey, JSON.stringify(categories));
+    }
+
+    accounts = accounts.filter(a => a.id !== accId);
+    const accKey = getStorageKey('accounts', userEmail);
+    localStorage.setItem(accKey, JSON.stringify(accounts));
+    return true;
   },
 
   getTransactions(userEmail) {
@@ -416,6 +485,20 @@ export const storageService = {
       return await supabaseService.deleteCategory(catId, userEmail);
     }
     return this.deleteCategory(catId, userEmail);
+  },
+
+  async addSubAccountAsync(subAccountData, userEmail) {
+    if (isSupabaseConfigured()) {
+      return await supabaseService.addAccount(subAccountData, userEmail);
+    }
+    return this.addSubAccount(subAccountData, userEmail);
+  },
+
+  async deleteSubAccountAsync(accId, userEmail) {
+    if (isSupabaseConfigured()) {
+      return await supabaseService.deleteAccount(accId, userEmail);
+    }
+    return this.deleteSubAccount(accId, userEmail);
   }
 };
 

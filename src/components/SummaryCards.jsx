@@ -1,6 +1,8 @@
 import React from 'react';
-import { Wallet, Home, User, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Scale } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Scale } from 'lucide-react';
 import { formatIDR } from '../utils/formatters';
+import { AccountIcon } from '../utils/accountIcons';
+import { getPrimaryAccount, getSubAccounts, getAccountColor, getAccountIcon, getAccountFooter } from '../utils/scopeMeta';
 
 const MONTH_NAMES_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -8,9 +10,8 @@ const MONTH_NAMES_ID = [
 ];
 
 export const SummaryCards = ({ accounts, transactions }) => {
-  const primaryAcc = accounts.find(a => a.type === 'PRIMARY') || { balance: 0, name: 'Saldo Utama' };
-  const householdAcc = accounts.find(a => a.type === 'HOUSEHOLD_SUB') || { balance: 0, name: 'Sub Rumah Tangga' };
-  const personalAcc = accounts.find(a => a.type === 'PERSONAL_SUB') || { balance: 0, name: 'Sub Personal' };
+  const primaryAcc = getPrimaryAccount(accounts) || { id: 'acc-primary', balance: 0, name: 'Saldo Utama' };
+  const subAccounts = getSubAccounts(accounts);
 
   // Calculate current month income and expense (dinamis berdasarkan tanggal sekarang)
   const now = new Date();
@@ -27,7 +28,6 @@ export const SummaryCards = ({ accounts, transactions }) => {
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const netCashFlow = monthlyIncome - monthlyExpense;
-  const totalBalance = primaryAcc.balance + householdAcc.balance + personalAcc.balance;
 
   // Hitung perubahan dibanding bulan lalu (untuk indikator trend)
   const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -36,17 +36,20 @@ export const SummaryCards = ({ accounts, transactions }) => {
     .filter(t => t.type === 'INCOME' && t.date.startsWith(prevMonthStr))
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
+  const primaryColor = getAccountColor(primaryAcc);
+  const primaryIcon = getAccountIcon(primaryAcc);
+
   return (
     <div className="summary-grid">
       {/* 1. Saldo Utama Card */}
       <div className="glass-card card-primary-account">
         <div className="summary-card-header">
           <span className="summary-card-title">Saldo Utama</span>
-          <div className="summary-card-icon" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3B82F6' }}>
-            <Wallet size={20} />
+          <div className="summary-card-icon" style={{ background: `${primaryColor}33`, color: primaryColor }}>
+            <AccountIcon name={primaryIcon} size={20} />
           </div>
         </div>
-        <div className="summary-card-value" style={{ color: '#3B82F6' }}>
+        <div className="summary-card-value" style={{ color: primaryColor }}>
           {formatIDR(primaryAcc.balance)}
         </div>
         <div className="summary-card-footer">
@@ -54,39 +57,29 @@ export const SummaryCards = ({ accounts, transactions }) => {
         </div>
       </div>
 
-      {/* 2. Sub-Saldo Rumah Tangga Card */}
-      <div className="glass-card card-household-account">
-        <div className="summary-card-header">
-          <span className="summary-card-title">Sub Rumah Tangga</span>
-          <div className="summary-card-icon" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10B981' }}>
-            <Home size={20} />
+      {/* Sub-Saldo Cards (dinamis mengikuti pos yang ada) */}
+      {subAccounts.map((acc) => {
+        const accColor = getAccountColor(acc);
+        const accIcon = getAccountIcon(acc);
+        return (
+          <div className="glass-card" key={acc.id} style={{ borderLeft: `4px solid ${accColor}` }}>
+            <div className="summary-card-header">
+              <span className="summary-card-title">{acc.name}</span>
+              <div className="summary-card-icon" style={{ background: `${accColor}33`, color: accColor }}>
+                <AccountIcon name={accIcon} size={20} />
+              </div>
+            </div>
+            <div className="summary-card-value" style={{ color: accColor }}>
+              {formatIDR(acc.balance)}
+            </div>
+            <div className="summary-card-footer">
+              <span>{getAccountFooter(acc)}</span>
+            </div>
           </div>
-        </div>
-        <div className="summary-card-value" style={{ color: '#10B981' }}>
-          {formatIDR(householdAcc.balance)}
-        </div>
-        <div className="summary-card-footer">
-          <span>Pos Belanja & Operasional RT</span>
-        </div>
-      </div>
+        );
+      })}
 
-      {/* 3. Sub-Saldo Personal Card */}
-      <div className="glass-card card-personal-account">
-        <div className="summary-card-header">
-          <span className="summary-card-title">Sub Personal</span>
-          <div className="summary-card-icon" style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#8B5CF6' }}>
-            <User size={20} />
-          </div>
-        </div>
-        <div className="summary-card-value" style={{ color: '#8B5CF6' }}>
-          {formatIDR(personalAcc.balance)}
-        </div>
-        <div className="summary-card-footer">
-          <span>Pos Hiburan, Hobi & Lifestyle</span>
-        </div>
-      </div>
-
-      {/* 4. Total Pemasukan Bulan Ini */}
+      {/* 2. Total Pemasukan Bulan Ini */}
       <div className="glass-card">
         <div className="summary-card-header">
           <span className="summary-card-title">Pemasukan {currentMonthName}</span>
@@ -109,7 +102,7 @@ export const SummaryCards = ({ accounts, transactions }) => {
         </div>
       </div>
 
-      {/* 5. Total Pengeluaran Bulan Ini */}
+      {/* 3. Total Pengeluaran Bulan Ini */}
       <div className="glass-card">
         <div className="summary-card-header">
           <span className="summary-card-title">Pengeluaran {currentMonthName}</span>
@@ -126,7 +119,7 @@ export const SummaryCards = ({ accounts, transactions }) => {
         </div>
       </div>
 
-      {/* 6. Net Cash Flow Bulan Ini */}
+      {/* 4. Net Cash Flow Bulan Ini */}
       <div className="glass-card">
         <div className="summary-card-header">
           <span className="summary-card-title">Net Cash Flow</span>

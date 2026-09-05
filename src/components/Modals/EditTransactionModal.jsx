@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Edit3, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { formatIDR } from '../../utils/formatters';
+import { getScopeOptionSuffix } from '../../utils/scopeMeta';
 
 export const EditTransactionModal = ({ isOpen, onClose, onSubmit, transaction, accounts, categories }) => {
   // Semua hooks wajib dipanggil SEBELUM early return (Rules of Hooks)
@@ -52,9 +53,10 @@ export const EditTransactionModal = ({ isOpen, onClose, onSubmit, transaction, a
   }
 
   // Filter categories based on transaction type
+  // Pengeluaran: semua scope selain INCOME (dinamis mengikuti pos yang ada).
   const availableCategories = categories.filter(c => {
     if (type === 'INCOME') return c.scope === 'INCOME';
-    if (type === 'EXPENSE') return c.scope === 'HOUSEHOLD_EXPENSE' || c.scope === 'PERSONAL_EXPENSE';
+    if (type === 'EXPENSE') return c.scope !== 'INCOME';
     return true;
   });
 
@@ -155,7 +157,7 @@ export const EditTransactionModal = ({ isOpen, onClose, onSubmit, transaction, a
                 <option value="">-- Pilih Kategori --</option>
                 {availableCategories.map(cat => (
                   <option key={cat.id} value={cat.id}>
-                    {cat.name} ({cat.scope === 'HOUSEHOLD_EXPENSE' ? '🏠 Rumah Tangga' : cat.scope === 'PERSONAL_EXPENSE' ? '👤 Personal' : '💰 Pemasukan'})
+                    {cat.name} ({getScopeOptionSuffix(cat.scope, accounts)})
                   </option>
                 ))}
               </select>

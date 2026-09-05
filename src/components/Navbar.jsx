@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wallet, PieChart, Tag, Sun, Moon, ArrowRightLeft, ShieldCheck, LogOut, BookOpen, Users, Download, Upload, Database } from 'lucide-react';
+import { Wallet, PieChart, Tag, Boxes, Sun, Moon, ArrowRightLeft, ShieldCheck, LogOut, BookOpen, Users, Download, Upload, Database } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 
@@ -38,6 +38,14 @@ export const Navbar = ({ activeTab, setActiveTab, accounts, theme, toggleTheme, 
           >
             <Tag size={18} />
             <span>Kelola Kategori</span>
+          </button>
+
+          <button
+            className={`nav-btn ${activeTab === 'subs' ? 'active' : ''}`}
+            onClick={() => setActiveTab('subs')}
+          >
+            <Boxes size={18} />
+            <span>Sub-Saldo</span>
           </button>
 
           {isSuperAdmin && (
@@ -248,6 +256,14 @@ export const Navbar = ({ activeTab, setActiveTab, accounts, theme, toggleTheme, 
         >
           <Tag size={20} />
           <span>Kategori</span>
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${activeTab === 'subs' ? 'active' : ''}`}
+          onClick={() => setActiveTab('subs')}
+        >
+          <Boxes size={20} />
+          <span>Sub-Saldo</span>
         </button>
 
         {isSuperAdmin && (

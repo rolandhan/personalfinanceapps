@@ -13,6 +13,7 @@ import { UserManagement } from './components/UserManagement';
 import { TransactionModal } from './components/Modals/TransactionModal';
 import { AllocationModal } from './components/Modals/AllocationModal';
 import { CategoryModal } from './components/Modals/CategoryModal';
+import { SubAccountModal } from './components/Modals/SubAccountModal';
 import { EditTransactionModal } from './components/Modals/EditTransactionModal';
 import { UserGuideModal } from './components/Modals/UserGuideModal';
 import { SupabaseConfigModal } from './components/Modals/SupabaseConfigModal';
@@ -137,6 +138,32 @@ export const App = () => {
     }
   };
 
+  const handleOpenSubAccounts = () => {
+    setIsCategoryOpen(false);
+    setActiveTab('subs');
+  };
+
+  const handleAddSubAccount = async (subAccountData) => {
+    if (!currentUser) return;
+    try {
+      await storageService.addSubAccountAsync(subAccountData, currentUser.email);
+      await loadUserData(currentUser.email);
+    } catch (e) {
+      alert(e.message || 'Gagal menambahkan Sub-Saldo.');
+    }
+  };
+
+  const handleDeleteSubAccount = async (acc) => {
+    if (!currentUser) return;
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus Sub-Saldo "${acc.name}"?`)) return;
+    try {
+      await storageService.deleteSubAccountAsync(acc.id, currentUser.email);
+      await loadUserData(currentUser.email);
+    } catch (e) {
+      alert(e.message || 'Gagal menghapus Sub-Saldo.');
+    }
+  };
+
   const handleDeleteTransaction = async (trxId) => {
     if (!currentUser) return;
     if (window.confirm('Apakah Anda yakin ingin menghapus catatan transaksi ini? Saldo terkait akan dipulihkan.')) {
@@ -178,11 +205,12 @@ export const App = () => {
               onOpenTransaction={handleOpenTransaction}
               onOpenAllocation={() => setIsAllocationOpen(true)}
               onOpenCategory={() => setIsCategoryOpen(true)}
+              onOpenSubAccounts={handleOpenSubAccounts}
               onViewReports={() => setActiveTab('reports')}
             />
 
             {/* Visual Analytics Charts */}
-            <DashboardCharts transactions={transactions} categories={categories} theme={theme} />
+            <DashboardCharts accounts={accounts} transactions={transactions} categories={categories} theme={theme} />
 
             {/* Recent Transactions Widget */}
             <RecentTransactions
@@ -217,8 +245,21 @@ export const App = () => {
             isOpen={true}
             onClose={() => setActiveTab('dashboard')}
             categories={categories}
+            accounts={accounts}
             onAddCategory={handleAddCategory}
             onDeleteCategory={handleDeleteCategory}
+            onOpenSubAccounts={handleOpenSubAccounts}
+          />
+        )}
+
+        {activeTab === 'subs' && (
+          <SubAccountModal
+            isOpen={true}
+            onClose={() => setActiveTab('dashboard')}
+            accounts={accounts}
+            categories={categories}
+            onAddSubAccount={handleAddSubAccount}
+            onDeleteSubAccount={handleDeleteSubAccount}
           />
         )}
 
@@ -261,8 +302,10 @@ export const App = () => {
           isOpen={isCategoryOpen}
           onClose={() => setIsCategoryOpen(false)}
           categories={categories}
+          accounts={accounts}
           onAddCategory={handleAddCategory}
           onDeleteCategory={handleDeleteCategory}
+          onOpenSubAccounts={handleOpenSubAccounts}
         />
       )}
 

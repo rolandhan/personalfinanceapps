@@ -15,21 +15,31 @@ CREATE TABLE IF NOT EXISTS public.users (
 );
 
 -- 2. TABEL ACCOUNTS (SALDO UTAMA & SUB-SALDO)
+-- NOTE: Pengguna dapat menambah sub-saldo/pos sendiri (menu Sub-Saldo).
+--       type CUSTOM_SUB utk pos kustom; scope_code = jenis pengeluaran (scope)
+--       milik pos, sejajar dgn kolom scope di tabel categories.
 CREATE TABLE IF NOT EXISTS public.accounts (
     id VARCHAR(100) PRIMARY KEY,
     user_email VARCHAR(255) NOT NULL,
-    type VARCHAR(50) NOT NULL, -- 'PRIMARY', 'HOUSEHOLD_SUB', 'PERSONAL_SUB'
+    type VARCHAR(50) NOT NULL, -- 'PRIMARY', 'HOUSEHOLD_SUB', 'PERSONAL_SUB', 'CUSTOM_SUB'
     name VARCHAR(150) NOT NULL,
     balance DECIMAL(15, 2) DEFAULT 0,
     icon VARCHAR(50) DEFAULT 'Wallet',
+    color VARCHAR(20) DEFAULT NULL, -- warna aksen pos/kartu
+    scope_code VARCHAR(50) DEFAULT NULL, -- 'INCOME'?/ 'HOUSEHOLD_EXPENSE', 'PERSONAL_EXPENSE', 'SCOPE_<ts>'
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+-- MIGRASI UNTUK DATABASE YANG SUDAH ADA (jalankan di SQL Editor bila tabel accounts
+-- sudah dibuat sebelum kolom color & scope_code ditambahkan):
+-- ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS color VARCHAR(20) DEFAULT NULL;
+-- ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS scope_code VARCHAR(50) DEFAULT NULL;
 
 -- 3. TABEL CATEGORIES
 CREATE TABLE IF NOT EXISTS public.categories (
     id VARCHAR(100) PRIMARY KEY,
     user_email VARCHAR(255) NOT NULL,
-    scope VARCHAR(50) NOT NULL, -- 'INCOME', 'HOUSEHOLD_EXPENSE', 'PERSONAL_EXPENSE'
+    scope VARCHAR(50) NOT NULL, -- 'INCOME', 'HOUSEHOLD_EXPENSE', 'PERSONAL_EXPENSE', atau scope_code pos kustom
     name VARCHAR(150) NOT NULL,
     icon VARCHAR(50) DEFAULT 'Tag',
     color VARCHAR(20) DEFAULT '#10B981',

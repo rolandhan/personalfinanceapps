@@ -1,9 +1,9 @@
 import { supabase } from './supabaseClient';
 
 const DEFAULT_ACCOUNTS = [
-  { id: 'acc-primary', type: 'PRIMARY', name: 'Saldo Utama (Gaji / Rekening Utama)', balance: 15500000, icon: 'Wallet' },
-  { id: 'acc-household', type: 'HOUSEHOLD_SUB', name: 'Sub-Saldo Rumah Tangga', balance: 4800000, icon: 'Home' },
-  { id: 'acc-personal', type: 'PERSONAL_SUB', name: 'Sub-Saldo Personal', balance: 2350000, icon: 'User' }
+  { id: 'acc-primary', type: 'PRIMARY', name: 'Saldo Utama (Gaji / Rekening Utama)', balance: 15500000, icon: 'Wallet', color: '#3B82F6', scope_code: null },
+  { id: 'acc-household', type: 'HOUSEHOLD_SUB', name: 'Sub-Saldo Rumah Tangga', balance: 4800000, icon: 'Home', color: '#10B981', scope_code: 'HOUSEHOLD_EXPENSE' },
+  { id: 'acc-personal', type: 'PERSONAL_SUB', name: 'Sub-Saldo Personal', balance: 2350000, icon: 'User', color: '#8B5CF6', scope_code: 'PERSONAL_EXPENSE' }
 ];
 
 const DEFAULT_CATEGORIES = [
@@ -149,7 +149,9 @@ export const supabaseService = {
       type: a.type,
       name: a.name,
       balance: Number(a.balance),
-      icon: a.icon
+      icon: a.icon,
+      color: a.color || null,
+      scopeCode: a.scope_code || null
     }));
   },
 
@@ -417,5 +419,80 @@ export const supabaseService = {
   async deleteCategory(catId, userEmail) {
     if (!supabase || !userEmail) return;
     await supabase.from('categories').delete().eq('id', catId).eq('user_email', userEmail);
+  },
+
+  // Add Sub-Saldo / Pos baru (dgn jenis pengeluaran / scope_code sendiri)
+  async addAccount(subAccountData, userEmail) {
+    if (!supabase || !userEmail) return null;
+
+    const name = String((subAccountData && subAccountData.name) || '').trim();
+    if (!name) throw new Error('Nama pos / sub-saldo tidak boleh kosong.');
+
+    const timestamp = Date.now();
+    const base = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'pos';
+    const newAccount = {
+      id: `acc-${base}-${timestamp}`,
+      user_email: userEmail,
+      type: 'CUSTOM_SUB',
+      name: `Sub-Saldo ${name}`,
+      balance: 0,
+      icon: (subAccountData && subAccountData.icon) || 'Wallet',
+      color: (subAccountData && subAccountData.color) || '#8B5CF6',
+      scope_code: `SCOPE_${timestamp}`
+    };
+
+    const { error } = await supabase.from('accounts').insert(newAccount);
+    if (error) throw error;
+    return newAccount;
+  },
+
+  // Delete Sub-Saldo / Pos (syarat aman: saldo 0 & tidak dipakai transaksi).
+  // Kategori milik pos (scope_code) ikut terhapus.
+  async deleteAccount(accId, userEmail) {
+    if (!supabase || !userEmail) return;
+
+    const { data: accList, error: accError } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('id', accId)
+      .eq('user_email', userEmail);
+
+    if (accError) throw accError;
+    const account = accList && accList[0];
+    if (!account) throw new Error('Sub-Saldo tidak ditemukan.');
+    if (account.type === 'PRIMARY') throw new Error('Saldo Utama tidak dapat dihapus.');
+    if (Number(account.balance) !== 0) {
+      throw new Error('Sub-Saldo masih memiliki saldo. Kosongkan dulu sebelum menghapus.');
+    }
+
+    // Cek apakah ada transaksi yang memakai akun ini
+    let isUsed = false;
+    for (const col of ['account_id', 'from_account_id', 'to_account_id']) {
+      const { count } = await supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq(col, accId)
+        .eq('user_email', userEmail);
+      if (count && count > 0) { isUsed = true; break; }
+    }
+    if (isUsed) {
+      throw new Error('Sub-Saldo masih dipakai oleh transaksi. Tidak dapat dihapus.');
+    }
+
+    // Cascade hapus kategori yang ber-scope milik pos ini
+    if (account.scope_code) {
+      await supabase
+        .from('categories')
+        .delete()
+        .eq('scope', account.scope_code)
+        .eq('user_email', userEmail);
+    }
+
+    const { error: delError } = await supabase
+      .from('accounts')
+      .delete()
+      .eq('id', accId)
+      .eq('user_email', userEmail);
+    if (delError) throw delError;
   }
 };

@@ -1,12 +1,36 @@
-import React, { useState } from 'react';
-import { X, Tag, Plus, Trash2, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Tag, Plus, Trash2, Search, Boxes } from 'lucide-react';
+import {
+  INCOME_SCOPE,
+  getSubAccounts,
+  getAccountScopeCode,
+  getScopeMeta
+} from '../../utils/scopeMeta';
 
-export const CategoryModal = ({ isOpen, onClose, categories, onAddCategory, onDeleteCategory }) => {
+export const CategoryModal = ({ isOpen, onClose, categories, accounts = [], onAddCategory, onDeleteCategory, onOpenSubAccounts }) => {
   // Semua hooks wajib dipanggil SEBELUM early return (Rules of Hooks)
-  const [scope, setScope] = useState('HOUSEHOLD_EXPENSE');
+  const subAccounts = getSubAccounts(accounts);
+  const scopeOptions = [
+    { value: INCOME_SCOPE, label: getScopeMeta(INCOME_SCOPE, accounts).emoji + ' Pemasukan' },
+    ...subAccounts.map(acc => {
+      const meta = getScopeMeta(getAccountScopeCode(acc), accounts);
+      return { value: getAccountScopeCode(acc), label: (meta.emoji ? meta.emoji + ' ' : '') + meta.label };
+    })
+  ].filter(o => o.value);
+
+  const [scope, setScope] = useState(() => (scopeOptions[0] ? scopeOptions[0].value : INCOME_SCOPE));
   const [name, setName] = useState('');
   const [color, setColor] = useState('#3B82F6');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Jika scope yang dipilih sudah tidak ada (pos dihapus), alihkan ke pilihan pertama
+  const scopeCodesKey = scopeOptions.map(o => o.value).join('|');
+  useEffect(() => {
+    const valid = scopeCodesKey.split('|');
+    if (valid.length && !valid.includes(scope)) {
+      setScope(valid[0]);
+    }
+  }, [scopeCodesKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null;
 
@@ -25,22 +49,35 @@ export const CategoryModal = ({ isOpen, onClose, categories, onAddCategory, onDe
   };
 
   const getScopeBadge = (s) => {
-    if (s === 'INCOME') return <span className="badge badge-income">💰 Pemasukan</span>;
-    if (s === 'HOUSEHOLD_EXPENSE') return <span className="badge badge-expense">🏠 Pengeluaran RT</span>;
-    return <span className="badge badge-allocation">👤 Personal</span>;
+    const meta = getScopeMeta(s, accounts);
+    return (
+      <span className="badge" style={{ background: `${meta.color}1A`, color: meta.color, border: `1px solid ${meta.color}40` }}>
+        {meta.emoji ? `${meta.emoji} ` : ''}{meta.label}
+      </span>
+    );
   };
 
   const filteredCategories = categories.filter(cat =>
     cat.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const incomeCategories = filteredCategories.filter(c => c.scope === 'INCOME');
-  const householdCategories = filteredCategories.filter(c => c.scope === 'HOUSEHOLD_EXPENSE');
-  const personalCategories = filteredCategories.filter(c => c.scope === 'PERSONAL_EXPENSE');
+  // Statistik per scope (Pemasukan + tiap pos/sub-akun)
+  const scopeStats = [
+    { label: '💰 Pemasukan', color: '#10B981', count: filteredCategories.filter(c => c.scope === INCOME_SCOPE).length },
+    ...subAccounts.map(acc => {
+      const scopeCode = getAccountScopeCode(acc);
+      const meta = getScopeMeta(scopeCode, accounts);
+      return {
+        label: (meta.emoji ? meta.emoji + ' ' : '') + meta.label,
+        color: meta.color,
+        count: filteredCategories.filter(c => c.scope === scopeCode).length
+      };
+    })
+  ].filter(s => s.count > 0 || s.label === '💰 Pemasukan');
 
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal-content" style={{ maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div className="modal-content" style={{ maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="modal-header">
           <div className="modal-title">
             <Tag size={20} color="#10B981" />
@@ -54,18 +91,32 @@ export const CategoryModal = ({ isOpen, onClose, categories, onAddCategory, onDe
         <div className="modal-body">
           {/* Add Category Form */}
           <form onSubmit={handleSubmit} style={{ marginBottom: '1.5rem', background: 'var(--bg-primary)', padding: '1.25rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-            <h4 style={{ fontSize: '0.9rem', marginBottom: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Plus size={16} color="#10B981" /> Tambah Kategori Kustom Baru
-            </h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+                <Plus size={16} color="#10B981" /> Tambah Kategori Kustom Baru
+              </h4>
+              {onOpenSubAccounts && (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={onOpenSubAccounts}
+                  style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem' }}
+                  title="Buka menu untuk menambah Sub-Saldo / Pos baru"
+                >
+                  <Boxes size={14} color="#3B82F6" /> Tambah Pos Baru
+                </button>
+              )}
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 52px', gap: '0.75rem', marginBottom: '0.75rem', alignItems: 'center' }}>
               <select
                 className="form-control"
                 value={scope}
                 onChange={(e) => setScope(e.target.value)}
               >
-                <option value="HOUSEHOLD_EXPENSE">🏠 Pengeluaran RT</option>
-                <option value="PERSONAL_EXPENSE">👤 Pengeluaran Personal</option>
-                <option value="INCOME">💰 Pemasukan</option>
+                {scopeOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
 
               <input
@@ -109,15 +160,11 @@ export const CategoryModal = ({ isOpen, onClose, categories, onAddCategory, onDe
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
               Total: <strong>{categories.length}</strong> kategori
             </span>
-            <span style={{ fontSize: '0.78rem', color: '#10B981' }}>
-              💰 Pemasukan: <strong>{incomeCategories.length}</strong>
-            </span>
-            <span style={{ fontSize: '0.78rem', color: '#EF4444' }}>
-              🏠 RT: <strong>{householdCategories.length}</strong>
-            </span>
-            <span style={{ fontSize: '0.78rem', color: '#8B5CF6' }}>
-              👤 Personal: <strong>{personalCategories.length}</strong>
-            </span>
+            {scopeStats.map(s => (
+              <span key={s.label} style={{ fontSize: '0.78rem', color: s.color }}>
+                {s.label}: <strong>{s.count}</strong>
+              </span>
+            ))}
           </div>
 
           {/* List of Existing Categories */}

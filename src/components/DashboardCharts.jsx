@@ -15,6 +15,7 @@ import {
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
 import { LineChart, PieChart, BarChart2 } from 'lucide-react';
 import { formatIDR } from '../utils/formatters';
+import { getAccountColor } from '../utils/scopeMeta';
 
 ChartJS.register(
   CategoryScale,
@@ -48,7 +49,7 @@ const getLast6MonthsLabels = () => {
   return result;
 };
 
-export const DashboardCharts = ({ transactions, categories, theme }) => {
+export const DashboardCharts = ({ transactions, categories, theme, accounts = [] }) => {
   const isDark = theme === 'dark';
   const textColor = isDark ? '#94A3B8' : '#475569';
   const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
@@ -210,35 +211,25 @@ export const DashboardCharts = ({ transactions, categories, theme }) => {
 
   // ─────────────────────────────────────────────────────────────
   // 3. Bar Chart: Expense Comparison by Deduction Source (Data Real)
+  // Dinamis: satu bar per akun/sumber saldo yang ada.
   // ─────────────────────────────────────────────────────────────
-  const primaryAcc = { id: 'acc-primary' };
-  const householdAcc = { id: 'acc-household' };
-  const personalAcc = { id: 'acc-personal' };
-
-  const primaryExpense = transactions
-    .filter(t => t.type === 'EXPENSE' && t.accountId === 'acc-primary')
-    .reduce((sum, t) => sum + Number(t.amount), 0);
-
-  const householdExpense = transactions
-    .filter(t => t.type === 'EXPENSE' && t.accountId === 'acc-household')
-    .reduce((sum, t) => sum + Number(t.amount), 0);
-
-  const personalExpense = transactions
-    .filter(t => t.type === 'EXPENSE' && t.accountId === 'acc-personal')
-    .reduce((sum, t) => sum + Number(t.amount), 0);
+  const expenseByAccount = (accounts || []).map(acc => ({
+    id: acc.id,
+    name: acc.name,
+    color: getAccountColor(acc),
+    value: transactions
+      .filter(t => t.type === 'EXPENSE' && t.accountId === acc.id)
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+  }));
 
   const barData = {
-    labels: ['Saldo Utama', 'Sub Rumah Tangga', 'Sub Personal'],
+    labels: expenseByAccount.map(e => e.name),
     datasets: [
       {
         label: 'Total Pengeluaran (Rp)',
-        data: [primaryExpense, householdExpense, personalExpense],
-        backgroundColor: [
-          'rgba(59, 130, 246, 0.85)',
-          'rgba(16, 185, 129, 0.85)',
-          'rgba(139, 92, 246, 0.85)'
-        ],
-        borderColor: ['#3B82F6', '#10B981', '#8B5CF6'],
+        data: expenseByAccount.map(e => e.value),
+        backgroundColor: expenseByAccount.map(e => `${e.color}D9`),
+        borderColor: expenseByAccount.map(e => e.color),
         borderWidth: 1,
         borderRadius: 8,
         borderSkipped: false
