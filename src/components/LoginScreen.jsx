@@ -1,21 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, Wallet, PieChart, Lock, LogIn, Settings, Key, UserCheck, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Wallet, Lock, LogIn, Settings, Key, ShieldAlert } from 'lucide-react';
 import { authService, DEFAULT_GOOGLE_CLIENT_ID } from '../services/authService';
 
 export const LoginScreen = ({ onLoginSuccess }) => {
   const [clientId, setClientId] = useState(() => localStorage.getItem('fc_google_client_id') || DEFAULT_GOOGLE_CLIENT_ID);
   const [showConfig, setShowConfig] = useState(false);
-  const [loginTab, setLoginTab] = useState('credentials'); // 'credentials', 'google', 'demo'
+  const [loginTab, setLoginTab] = useState('credentials'); // 'credentials', 'google'
 
   // Credentials State
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-
-  // Demo State
-  const [demoName, setDemoName] = useState('Budi Santoso');
-  const [demoEmail, setDemoEmail] = useState('budi.santoso@gmail.com');
-  const [demoRole, setDemoRole] = useState('USER');
 
   useEffect(() => {
     authService.loadGoogleScript(() => {
@@ -67,24 +62,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     } catch (err) {
       setErrorMsg(err.message);
     }
-  };
-
-  const handleDemoLogin = (e) => {
-    e.preventDefault();
-    const user = authService.loginDemo(demoName, demoEmail, demoRole);
-    onLoginSuccess(user);
-  };
-
-  const fillSuperAdminPreset = () => {
-    setEmailInput('rolandbianci@gmail.com');
-    setPasswordInput('admin123');
-    setErrorMsg('');
-  };
-
-  const fillUserPreset = () => {
-    setEmailInput('mbah.rah17@gmail.com');
-    setPasswordInput('user123');
-    setErrorMsg('');
   };
 
   return (
@@ -142,7 +119,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             </div>
             <h3 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.25rem' }}>Selamat Datang</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Silakan pilih metode login untuk mengakses aplikasi.
+              Silakan masukan email dan password akun Anda.
             </p>
           </div>
 
@@ -160,12 +137,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             >
               Google SSO
             </button>
-            <button
-              className={`login-tab-btn ${loginTab === 'demo' ? 'active' : ''}`}
-              onClick={() => { setErrorMsg(''); setLoginTab('demo'); }}
-            >
-              Instant Demo
-            </button>
           </div>
 
           {/* Credentials / Password Login Form */}
@@ -182,7 +153,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="admin@financecraft.com"
+                  placeholder="Masukkan email Anda..."
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   required
@@ -194,7 +165,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                 <input
                   type="password"
                   className="form-control"
-                  placeholder="Password"
+                  placeholder="Masukkan password Anda..."
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   required
@@ -204,31 +175,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.85rem' }}>
                 <LogIn size={18} /> Masuk Akun
               </button>
-
-              {/* Quick Preset Hints */}
-              <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>
-                  Preset Akun Uji Coba (Klik langsung untuk isi otomatis):
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={fillSuperAdminPreset}
-                    style={{ flex: 1, padding: '0.45rem', fontSize: '0.75rem', borderColor: 'rgba(139, 92, 246, 0.4)', color: '#8B5CF6' }}
-                  >
-                    <ShieldAlert size={14} /> Admin Utama (Super Admin)
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={fillUserPreset}
-                    style={{ flex: 1, padding: '0.45rem', fontSize: '0.75rem' }}
-                  >
-                    <UserCheck size={14} /> User Rahma
-                  </button>
-                </div>
-              </div>
             </form>
           )}
 
@@ -242,45 +188,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                 <div id="googleSignInBtn"></div>
               </div>
             </div>
-          )}
-
-          {/* Instant Demo Mode Form */}
-          {loginTab === 'demo' && (
-            <form onSubmit={handleDemoLogin}>
-              <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Nama Pengguna Demo"
-                  value={demoName}
-                  onChange={(e) => setDemoName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-                <input
-                  type="email"
-                  className="form-control"
-                  placeholder="Email Google Demo"
-                  value={demoEmail}
-                  onChange={(e) => setDemoEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <select
-                  className="form-control"
-                  value={demoRole}
-                  onChange={(e) => setDemoRole(e.target.value)}
-                >
-                  <option value="USER">Masuk Sebagai: User Standard</option>
-                  <option value="SUPER_ADMIN">Masuk Sebagai: Admin Utama (Super Admin)</option>
-                </select>
-              </div>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.85rem' }}>
-                <LogIn size={18} /> Masuk Instant Demo
-              </button>
-            </form>
           )}
 
           {/* Optional Google Client ID Config Drawer */}
@@ -316,4 +223,3 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     </div>
   );
 };
-
